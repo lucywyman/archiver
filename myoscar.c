@@ -7,6 +7,10 @@ int main (int argc, char **argv){
         //Is a switch statement really the best way of doing this???
         switch(option){
             case 'a' : 
+                if(argc<=3){
+                   printf("Not enough arguments!\n");
+                   helptext();
+                }
                 append(argc, argv);
                 break;
             case 'A' : 
@@ -36,8 +40,9 @@ int main (int argc, char **argv){
                        break;
             case 'v' : printf("E was selected\n");
                        break;
-            case 'V' : printf("E was selected\n");
-                       break;
+            case 'V' : 
+                printf("Version 1.0");
+                exit(0);
             default : exit(1);
         }
     }
@@ -45,21 +50,22 @@ int main (int argc, char **argv){
 }
 
 void helptext(){
-    printf("To make go: myoscar [options] [archive file] [member[...]]"
-            "-a : Add specified member files from command line to archive file"
-            "-A : Add all regular files to the archive"
-            "-C : All files marked for deletion are deleted from the archive"
-            "-d : Delete member files from the archive"
-            "-e : Extract member files from the archive. If no member files specified, all files will be extracted."
-            "-E : Same as -e, but keeping current time"
-            "-h : Show help text"
-            "-m : Mark members as deleted"
-            "-o : Overwrite existing files on extract"
-            "-t : Short table of contents"
-            "-T : Long table of contents"
-            "-u : Unmark members as deleted"
-            "-v : Verbose processing"
-            "-V : Print version information");
+    printf("To make go: myoscar [options] [archive file] [member[...]]\n"
+            "-a : Add specified member files from command line to archive file\n"
+            "-A : Add all regular files to the archive\n"
+            "-C : All files marked for deletion are deleted from the archive\n"
+            "-d : Delete member files from the archive\n"
+            "-e : Extract member files from the archive. If no member files specified, all files will be extracted.\n"
+            "-E : Same as -e, but keeping current time\n"
+            "-h : Show help text\n"
+            "-m : Mark members as deleted\n"
+            "-o : Overwrite existing files on extract\n"
+            "-t : Short table of contents\n"
+            "-T : Long table of contents\n"
+            "-u : Unmark members as deleted\n"
+            "-v : Verbose processing\n"
+            "-V : Print version information\n");
+    exit(0);
 }
 
 void append(int argc, char* argv[]){
@@ -82,7 +88,7 @@ void append(int argc, char* argv[]){
 
     r = 0;
     open_flags = O_CREAT | O_RDWR;    
-    archive_fd = open(argv[2], open_flags, 0666);
+    archive_fd = open(argv[2], open_flags, 0644);
 
     //Can archive file be opened?
     if(archive_fd == -1){
@@ -127,54 +133,6 @@ void append(int argc, char* argv[]){
             exit(1);
         }       
         stat(argv[i], &st);
-
-        /*memset(&header.oscar_name, ' ', OSCAR_MAX_FILE_NAME_LEN);
-          memset(&header.oscar_name_len, ' ', 2);
-          memset(&header.oscar_cdate, ' ', OSCAR_DATE_SIZE);
-          memset(&header.oscar_adate, ' ', OSCAR_DATE_SIZE);
-          memset(&header.oscar_mdate, ' ', OSCAR_DATE_SIZE);
-          memset(&header.oscar_uid, ' ', OSCAR_UGID_SIZE);
-          memset(&header.oscar_gid, ' ', OSCAR_UGID_SIZE);
-          memset(&header.oscar_mode, ' ', OSCAR_MODE_SIZE);
-          memset(&header.oscar_size, ' ', OSCAR_FILE_SIZE);
-          memset(&header.oscar_deleted, ' ', 1);
-          memset(&header.oscar_sha1, ' ', OSCAR_SHA_DIGEST_LEN);
-          memset(&header.oscar_hdr_end, ' ', OSCAR_HDR_END_LEN);
-
-          sprintf(header.oscar_name, "%-16s", argv[i]);
-          sprintf(header.oscar_name_len, "%-2zu", strlen(argv[i])); 
-          sprintf(header.oscar_cdate, "%-12u", (unsigned int) st.st_ctime);
-          sprintf(header.oscar_adate, "%-12u", (unsigned int) st.st_atime);
-          sprintf(header.oscar_mdate, "%-12u", (unsigned int) st.st_mtime);
-          sprintf(header.oscar_uid, "%-6u",  (unsigned int) st.st_uid);
-          sprintf(header.oscar_gid, "%-6u",  (unsigned int) st.st_gid);
-          sprintf(header.oscar_mode, "%-8o",  (unsigned int) st.st_mode);
-          sprintf(header.oscar_size, "%-10u",  (unsigned int) st.st_size );
-          sprintf(header.oscar_hdr_end, "%s", OSCAR_HDR_END);
-
-          int total = 0;
-
-          total = write(archive_fd, &header.oscar_name, OSCAR_MAX_FILE_NAME_LEN);
-          total += write(archive_fd, " ", 1);
-          total += write(archive_fd, &header.oscar_name_len, 2);
-          total += write(archive_fd, &header.oscar_cdate, OSCAR_DATE_SIZE);
-          total += write(archive_fd, " ", 1);
-          total += write(archive_fd, &header.oscar_adate, OSCAR_DATE_SIZE);
-          total += write(archive_fd, " ", 1);
-          total += write(archive_fd, &header.oscar_mdate, OSCAR_DATE_SIZE);
-          total += write(archive_fd, " ", 1);
-          total += write(archive_fd, &header.oscar_uid, OSCAR_UGID_SIZE);
-          total += write(archive_fd, " ", 1);
-          total += write(archive_fd, &header.oscar_gid, OSCAR_UGID_SIZE);
-          total += write(archive_fd, " ", 1);
-          total += write(archive_fd, &header.oscar_mode, OSCAR_MODE_SIZE);
-          total += write(archive_fd, " ", 1);
-          total += write(archive_fd, &header.oscar_size, OSCAR_FILE_SIZE);
-          total += write(archive_fd, " ", 1);
-          total += write(archive_fd, &header.oscar_deleted, 1);
-          total += write(archive_fd, &header.oscar_sha1, OSCAR_SHA_DIGEST_LEN);
-          total += write(archive_fd, &header.oscar_hdr_end, OSCAR_HDR_END_LEN);
-         */
 
         snprintf(temp_name, OSCAR_MAX_FILE_NAME_LEN+1, "%-32s", argv[i]);
         snprintf(temp_name_len, 3, "%-2u", (int)strlen(argv[i])); 
@@ -222,7 +180,7 @@ void append(int argc, char* argv[]){
 void append_all(int argc, char* argv[]){
     DIR* directory;
     int i = 3;
-    char** list = malloc(i*sizeof(char*)); 
+    char** list = malloc(10*sizeof(char*)); 
     struct dirent *file;
     struct stat st;
     //Literally the worst hack ever
@@ -254,7 +212,7 @@ void append_all(int argc, char* argv[]){
                 strcpy(list[i], file->d_name);
                 i++;
                 argc++;
-                list = (char**)realloc(list, (i)*sizeof(char*));
+                //list = realloc(list, i*sizeof(char*));
             }
         }
     }
@@ -267,22 +225,17 @@ void append_all(int argc, char* argv[]){
     free(list);
 }
 
-void extract(int argc, char* argv[]){
+void extract(int argc, char* argv[], ){
     int file_fd, archive_fd, filesize, written, open_flags, file_flags;
     struct utimbuf tbuf;
     struct oscar_hdr new_header;
     struct stat st;
-    char id[OSCAR_ID_LEN];
-    char name[OSCAR_MAX_FILE_NAME_LEN];
-        open_flags = O_RDONLY;
+    char name[OSCAR_MAX_FILE_NAME_LEN+1];
+    open_flags = O_RDONLY;
     file_flags = O_CREAT | O_RDWR;
     archive_fd = open(argv[2], open_flags);
 
-    //Can archive file be opened?
-    if(archive_fd == -1){
-        printf("myoscar: Could not open archive file\n");
-        exit(1);
-    }
+    check_archive(archive_fd);
 
     //Can it be stat-ed?
     if(stat(argv[2], &st) == -1){
@@ -290,23 +243,21 @@ void extract(int argc, char* argv[]){
         exit(1);
     }
 
-    read(archive_fd, id, OSCAR_ID_LEN);
-
     //Check that specified files are actually in archive
     for(int i=3; i<argc; i++){
-        memset(name, ' ', OSCAR_MAX_FILE_NAME_LEN+1);
-        memcpy(name, argv[i], strlen(argv[i]));
-        printf("Mem name: %s", name);
+        memset(name, '\0', OSCAR_MAX_FILE_NAME_LEN+1);
+        memcpy(name, argv[i], strlen(argv[i])+1);
         if(read(archive_fd, &new_header, sizeof(new_header)) == -1){
             printf("Metadata could not be read\n");
             exit(1);
         }
-        //TODO PROBLEM
-        printf("Extracting: %s\n", new_header.oscar_name);
         if(ar_seek(archive_fd, argv[i], &new_header) == false){
             printf("Could not find %s.  Skipping.\n", argv[i]);
+        } else { 
+            for(int k=0; k<strlen(argv[1]); k++){
+                if(
+            file_fd = creat(argv[i], 0770);
         }
-        file_fd = creat(argv[i], 0770);
         if(file_fd == -1){
             printf("Could not open file for extraction\n");
             exit(1);
@@ -317,65 +268,113 @@ void extract(int argc, char* argv[]){
         while(written < filesize) {
             char buffer[BUFFER];
             size_t wr_size;
-
             wr_size = (filesize - written < BUFFER) ? filesize - written : BUFFER;
             if(read(archive_fd, buffer, wr_size) == -1){
-                printf("Error reading file");
+                printf("Error reading file\n");
                 exit(1);
             }
             if(write(file_fd, buffer, wr_size) == -1){
-                printf("Error writing file");
+                printf("Error writing file\n");
                 exit(1);
             }
-
             written += wr_size;
         }
-
         if(close(file_fd) == -1){
-            printf("Could not close file");
+            printf("Could not close file\n");
             exit(1);
         }
-
         tbuf.actime = ar_member_date(&new_header);
         tbuf.modtime = ar_member_date(&new_header);
         utime(argv[i], &tbuf);
     }
 }
 
+void del(int argc, char* argv[]){
+    int newarhive_fd, archive_fd, open_flags, new_flags;
+    //struct utimbuf tbuf;
+    //struct oscar_hdr new_header;
+    struct stat st;
+    //char name[OSCAR_MAX_FILE_NAME_LEN+1];
+    open_flags = O_RDONLY;
+    new_flags = O_CREAT | O_RDWR;
+    archive_fd = open(argv[2], open_flags);
+    newarchive_fd = open(
+
+    check_archive(archive_fd);
+
+    //Can it be stat-ed?
+    if(stat(argv[2], &st) == -1){
+        printf("myoscar: Could not stat archive file\n");
+        exit(1);
+    }
+
+    //Check that specified files are actually in archive
+    for(int i=3; i<argc; i++){
+        memset(name, '\0', OSCAR_MAX_FILE_NAME_LEN+1);
+        memcpy(name, argv[i], strlen(argv[i])+1);
+        if(read(archive_fd, &new_header, sizeof(new_header)) == -1){
+            printf("Metadata could not be read\n");
+            exit(1);
+        }
+        if(ar_seek(archive_fd, argv[i], &new_header) == false){
+            printf("Could not find %s.  Skipping.\n", argv[i]);
+        } else {
+            
+        }
+
+        while(written < filesize) {
+            char buffer[BUFFER];
+            size_t wr_size;
+            wr_size = (filesize - written < BUFFER) ? filesize - written : BUFFER;
+            if(read(archive_fd, buffer, wr_size) == -1){
+                printf("Error reading file\n");
+                exit(1);
+            }
+            if(write(file_fd, buffer, wr_size) == -1){
+                printf("Error writing file\n");
+                exit(1);
+            }
+            written += wr_size;
+        }
+        if(close(file_fd) == -1){
+            printf("Could not close file\n");
+            exit(1);
+        }
+        tbuf.actime = ar_member_date(&new_header);
+        tbuf.modtime = ar_member_date(&new_header);
+        utime(argv[i], &tbuf);
+    }       
+
+}
+
 bool ar_seek(int archive_fd, char* name, struct oscar_hdr *header){
     off_t filesize;
-    printf("HEADER: %s\n", header->oscar_name);
     struct stat st;
-    printf("SIZE: %s\n", header->oscar_size);
 
     if(fstat(archive_fd, &st) == -1){
-        printf("Could not stat archive");
+        printf("Could not stat archive\n");
         exit(1);
     }    
 
     if(archive_fd<0 || name == NULL){
-        printf("Not a valid file! Please try again.");
+        printf("Not a valid file! Please try again.\n");
         exit(1);
     }
-    printf("%ld\n%ld\n", lseek(archive_fd, OSCAR_ID_LEN, SEEK_SET), st.st_size);
     int a = lseek(archive_fd, 0, SEEK_CUR);
     //For each member
     while(a < st.st_size){
         char filename[OSCAR_MAX_FILE_NAME_LEN+1];
-        //TODO Make error checking functions
         if(read(archive_fd, header, OSCAR_HDR_SIZE) == -1){
-            printf("Error reading header data");
+            printf("Error reading header data\n");
             exit(1);
         }
         memset(filename, '\0', OSCAR_MAX_FILE_NAME_LEN+1);
-        memcpy(filename, header->oscar_name, OSCAR_MAX_FILE_NAME_LEN);
-        printf("Passed name: %sProcessed: %s", name, filename);
-        //Error check 
+        memcpy(filename, header->oscar_name, strlen(name));
+        //Compare file names to see if it's the right file
         if(strcmp(name, filename) == 0){
             return true;
         }
         filesize = ar_member_size(header);
-        //printf("FILESIZE: %ld\n", filesize);
         a = lseek(archive_fd, filesize, SEEK_CUR);
         if((lseek(archive_fd, 0, SEEK_CUR) %2) == 1){
             a = lseek(archive_fd, 1, SEEK_CUR);
@@ -388,7 +387,6 @@ bool ar_seek(int archive_fd, char* name, struct oscar_hdr *header){
 off_t ar_member_size(struct oscar_hdr *header) {
     char size[OSCAR_FILE_SIZE + 1];
     assert(header != NULL);
-    printf("Filesize: %s\n", header->oscar_size);
     memcpy(size, header->oscar_size, OSCAR_FILE_SIZE);
     size[OSCAR_FILE_SIZE] = '\0';
     return strtol(size, NULL, 10);
@@ -402,12 +400,23 @@ time_t ar_member_date(struct oscar_hdr *header) {
     return strtol(str, NULL, 10);
 }
 
-void check_archive(int fd){
-    char oscar_header[] = OSCAR_ID;
-    if(read(fd, oscar_header, OSCAR_ID_LEN) == -1){
-        printf("Ooops! That isn't an archive file");
+void check_archive(int archive_fd){
+    char oscar_header[];
+    if(read(archive_fd, oscar_header, OSCAR_ID_LEN) == -1){
+        printf("Ooops! That isn't an archive file\n");
         exit(1);
     }
+    if(strcmp(oscar_header, OSCAR_ID) != 0){
+        printf("Not a valid archive file\n");
+        exit(1);
+    }
+    
+    //Can archive file be opened?
+    if(archive_fd == -1){
+        printf("myoscar: Could not open archive file\n");
+        exit(1);
+    }
+    
 }
 
 
