@@ -22,14 +22,19 @@ int main (int argc, char **argv){
                        del(argc, argv);
                        break;
             case 'e' : 
-                       extract(argc, argv);
+                       if(argc==3){
+                           extract_all(argc, argv);
+                       } else {
+                           extract(argc, argv);
+                       }
                        break;
             case 'E' : printf("E was selected\n");
                        break;
             case 'h' : 
                        helptext();
                        exit(0);
-            case 'm' : printf("E was selected\n");
+            case 'm' : 
+                       mark(argc, argv, 'm');
                        break;
             case 'o' : printf("E was selected\n");
                        break;
@@ -37,7 +42,8 @@ int main (int argc, char **argv){
                        break;
             case 'T' : printf("E was selected\n");
                        break;
-            case 'u' : printf("E was selected\n");
+            case 'u' : 
+                    mark(argc, argv, 'u');
                        break;
             case 'v' : printf("E was selected\n");
                        break;
@@ -290,15 +296,59 @@ void extract(int argc, char* argv[]){
     }
 }
 
+void extract_all(int argc, char* argv[]){
+    DIR* directory;
+    int i = 3;
+    char** list = malloc(100*sizeof(char*));
+    struct dirent *file;
+    struct stat st;
+    //Literally the worst hack ever
+    list[0] = "a";
+    list[1] = "b";
+    list[2] = malloc((strlen(argv[2])+1)*sizeof(char));
+    strcpy(list[2], argv[2]);
+    //Make sure current directory is a thing
+    directory = opendir(".");
+    if(directory == NULL){
+        printf("Could not open current directory");
+        exit(1);
+    }
+    //Iterate through file list to create list of regular files
+    while((file=readdir(directory))!= NULL) {
+        if((stat(file->d_name, &st))==-1){
+            printf("Could not stat file");
+            exit(1);
+        }
+        //If it's a regular file
+        if(S_ISREG(st.st_mode) != 0){
+            if(strcmp(file->d_name, argv[2]) != 0
+                    && strcmp(file->d_name, "a.out") !=0){
+                //Is this literally the worst way to do this? I wouldn't be surprised
+                //Separate function
+                list[i] = malloc((strlen(file->d_name)+1) * sizeof(char));
+                strcpy(list[i], file->d_name);
+                i++;
+                argc++;
+                //list = realloc(list, i*sizeof(char*));
+            }
+        }
+    } 
+    extract(argc, list);
+    for(int j=2; j<argc; j++){
+        free(list[j]);
+    }
+    free(list);
+}
+
 void del(int argc, char* argv[]){
-    int archive_fd, temp_fd, open_flags, new_flags, delete=0, filesize=0;
+    int archive_fd, temp_fd, open_flags, new_flags, del=0, filesize=0;
     struct oscar_hdr header;
     struct stat st;
     char filename[OSCAR_MAX_FILE_NAME_LEN+1];
     open_flags = O_RDONLY;
     new_flags = O_CREAT | O_RDWR;
     archive_fd = open(argv[2], open_flags);
-    temp_fd = open("temp.txt", new_flags, 0666);
+    temp_fd = open("temp.txt", new_flags, 0644);
 
     if(temp_fd == -1){
         printf("Could not open temporary file\n");
@@ -313,9 +363,8 @@ void del(int argc, char* argv[]){
     }
 
     int a = lseek(archive_fd, OSCAR_ID_LEN, SEEK_SET);
-    while(a< st.st_size){
-        delete = 0;
-        printf("%d\n", sizeof(header));
+    while(a<st.st_size){
+        del = 0;
         if(read(archive_fd, &header, sizeof(header)) == -1){
             printf("Error reading header data\n");
             exit(1);
@@ -324,23 +373,55 @@ void del(int argc, char* argv[]){
             memset(filename, '\0', OSCAR_MAX_FILE_NAME_LEN+1);
             memcpy(filename, header.oscar_name, strlen(argv[i]));
             if(strcmp(argv[i], filename) == 0){
-                delete = 1;
+                del = 1;
             }
         }
         filesize = ar_member_size(&header);
         char buf[filesize];
-        if(delete == 0){
-            read(archive_fd, buf, sizeof(header));
-            write(temp_fd, buf, sizeof(header));
+        if(del == 0){
+            write(temp_fd, &header, sizeof(header));
             read(archive_fd, buf, filesize);
             write(temp_fd, buf, filesize);
+        } else {
+            a = lseek(archive_fd, filesize, SEEK_CUR);
         }
-
-        a = lseek(archive_fd, filesize, SEEK_CUR);
+        
+        (rename("temp.txt", argv[2]));
         if(lseek(archive_fd, 0, SEEK_CUR)%2 == 1){
         }
     }
     close(temp_fd);
+}
+
+void mark(int argc, char* argv[], char flag){
+    int archive_fd, open_flags;
+    struct oscar_hdr header;
+    open_flags = O_RDWR;
+
+    archive_fd = open(argv[2], open_flags);
+    for(int i=3; i<argc; i++){
+        if(read(archive_fd, &header, sizeof(header)) == -1){
+            printf("Metadata could not be read");
+            exit(1);
+        }
+        if(ar_seek(archive_fd, argv[i], &header)==false){
+            printf("Could not find %s.  Skipping\n", argv[i]);
+        } else {
+            lseek(archive_fd, -1*(OSCAR_SHA_DIGEST_LEN+OSCAR_HDR_END_LEN), SEEK_CUR); 
+            int prior = lseek(archive_fd, 0, SEEK_CUR);
+            char buf[prior];
+            lseek(archive_fd, 0, SEEK_SET);
+            read(archive_fd, buf, prior);
+            if(flag == 'm'){
+                buf[prior-1] = 'y';
+            }
+            else if (flag == 'u'){
+                buf[prior-1] = '\0';
+            }   
+            lseek(archive_fd, 0, SEEK_SET);
+            write(archive_fd, buf, prior);
+        }
+    }
 }
 
 bool ar_seek(int archive_fd, char* name, struct oscar_hdr *header){
@@ -358,7 +439,7 @@ bool ar_seek(int archive_fd, char* name, struct oscar_hdr *header){
     }
     lseek(archive_fd, OSCAR_ID_LEN, SEEK_SET);
     int a = lseek(archive_fd, 0, SEEK_CUR);
-    printf("A:%d\n", a);
+    //printf("A:%d\n", a);
     //For each member
     while(a < st.st_size){
         char filename[OSCAR_MAX_FILE_NAME_LEN+1];

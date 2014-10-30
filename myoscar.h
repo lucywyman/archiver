@@ -29,7 +29,8 @@ bool ar_seek(int, char*, struct oscar_hdr*);
 void check_archive(int);
 void del(int, char**);
 void extract(int, char**);
-void extract_all(int fd);
+void extract_all(int, char**);
+void mark(int, char**, char);
 void print_verbose(int fd);
 void print_concise(int fd);
 
