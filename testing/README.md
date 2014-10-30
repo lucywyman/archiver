@@ -1,5 +1,0 @@
-Archiver
-========
-
-Simple Archiver implementation
-

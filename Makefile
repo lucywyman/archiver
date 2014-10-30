@@ -1,4 +1,4 @@
-CPPC=clang
+CPPC=gcc
 CFLAGS= -Wall -std=c99 -g
 
 all: myoscar.c

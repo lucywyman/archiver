@@ -1,6 +1,13 @@
+//Lucy Wyman
+//wymanl@onid.oregonstate.edu
+//CS344-001
+//Assignment 2
+
 #include "myoscar.h"
+static int v = 0;
 int main (int argc, char **argv){
-    int option;
+    int option, archive_fd;
+    archive_fd = open(argv[2], O_RDWR);
     int options[14];
     memset(options, 0, sizeof(options));
     while((option = getopt(argc, argv, "aACdeEhmotTuvV")) != -1){
@@ -38,14 +45,19 @@ int main (int argc, char **argv){
                        break;
             case 'o' : printf("E was selected\n");
                        break;
-            case 't' : printf("E was selected\n");
+            case 't' : 
+                       check_archive(archive_fd);
+                       create_tables(archive_fd, 't');
                        break;
-            case 'T' : printf("E was selected\n");
+            case 'T' :  
+                       check_archive(archive_fd);
+                       create_tables(archive_fd, 'T');   
                        break;
             case 'u' : 
-                    mark(argc, argv, 'u');
+                       mark(argc, argv, 'u');
                        break;
-            case 'v' : printf("E was selected\n");
+            case 'v' : 
+                       v = 1;        
                        break;
             case 'V' : 
                        printf("Version 1.0");
@@ -96,23 +108,33 @@ void append(int argc, char* argv[]){
     r = 0;
     open_flags = O_CREAT | O_RDWR;    
     archive_fd = open(argv[2], open_flags, 0644);
-
+    if (v == 1){
+        printf("Checking for errors in file\n");
+    }
     //Can archive file be opened?
     if(archive_fd == -1){
-        printf("myoscar: Could not open archive file");
+        printf("myoscar: Could not open archive file\n");
         exit(1);
     }
-
+if (v == 1){
+        printf("Getting archive file data\n");
+    }
     //Can it be stat-ed?
     if(fstat(archive_fd, &st) == -1){
-        printf("myoscar: Could not stat archive file");
+        printf("myoscar: Could not stat archive file\n");
         exit(1);
     }
     //If the archive already exists
     if((long long) st.st_size > 0){
         check_archive(archive_fd);
     } else {
+        if (v == 1){
+        printf("Writing Oscar ID\n");
+    }
         write(archive_fd, oscar_header, OSCAR_ID_LEN);
+    }
+if (v == 1){
+        printf("Appending files...This could take a minute or two\n");
     }
 
     //Loop through list of files to make sure they are valid
@@ -170,6 +192,10 @@ void append(int argc, char* argv[]){
             printf("Error writing to archive\n");
             exit(1);
         }
+        if (v == 1){
+        printf("Writing file...\n");
+    }
+
 
         while((read(file_fd, buf, BUFFER))!=0){
             write(archive_fd, buf, BUFFER);
@@ -196,12 +222,18 @@ void append_all(int argc, char* argv[]){
     list[1] = "b";
     list[2] = malloc((strlen(argv[2])+1)*sizeof(char));
     strcpy(list[2], argv[2]);
+if (v == 1){
+        printf("Opening current directory\n");
+    }
 
     //Make sure current directory is a thing     
     directory = opendir(".");
     if(directory == NULL){
         printf("Could not open current directory");
         exit(1);
+    }
+if (v == 1){
+        printf("Creating list of directory files\n");
     }
 
     //Iterate through file list to create list of regular files
@@ -227,6 +259,10 @@ void append_all(int argc, char* argv[]){
 
     append(argc, list);
     //First two "ghost elements" not malloc'd
+if (v == 1){
+        printf("Freeing memory\n");
+    }
+
     for(int j=2; j<argc; j++){
         free(list[j]);
     }   
@@ -242,6 +278,9 @@ void extract(int argc, char* argv[]){
     open_flags = O_RDONLY;
     file_flags = O_CREAT | O_RDWR;
     archive_fd = open(argv[2], open_flags);
+if (v == 1){
+        printf("Checking archive\n");
+    }
 
     check_archive(archive_fd);
 
@@ -249,6 +288,9 @@ void extract(int argc, char* argv[]){
     if(stat(argv[2], &st) == -1){
         printf("myoscar: Could not stat archive file\n");
         exit(1);
+    }
+if (v == 1){
+        printf("Check that file is in archive\n");
     }
 
     //Check that specified files are actually in archive
@@ -259,11 +301,21 @@ void extract(int argc, char* argv[]){
             printf("Metadata could not be read\n");
             exit(1);
         }
-        printf("%s\n", name);
         if(ar_seek(archive_fd, argv[i], &new_header) == false){
             printf("Could not find %s.  Skipping.\n", argv[i]);
         } else { 
-            file_fd = creat(argv[i], 0770);
+            mode_t d = 0;
+            char date[OSCAR_MODE_SIZE+1];
+            memset(date, '\0', OSCAR_MODE_SIZE+1);
+            memcpy(date, new_header.oscar_mode, OSCAR_MODE_SIZE); 
+            /*if(date[3] == '7'){
+              d |= S_IRWXU;
+              }
+              else if(date[3] == '4'){
+              d |= S_IRUSR;
+              }
+              else if(date[3] ==*/ 
+            file_fd = creat(argv[i], file_flags);
         }
         if(file_fd == -1){
             printf("Could not open file for extraction\n");
@@ -290,6 +342,7 @@ void extract(int argc, char* argv[]){
             printf("Could not close file\n");
             exit(1);
         }
+
         tbuf.actime = ar_member_date(&new_header);
         tbuf.modtime = ar_member_date(&new_header);
         utime(argv[i], &tbuf);
@@ -299,7 +352,7 @@ void extract(int argc, char* argv[]){
 void extract_all(int argc, char* argv[]){
     DIR* directory;
     int i = 3;
-    char** list = malloc(100*sizeof(char*));
+    char** list = malloc(i*sizeof(char*));
     struct dirent *file;
     struct stat st;
     //Literally the worst hack ever
@@ -329,7 +382,7 @@ void extract_all(int argc, char* argv[]){
                 strcpy(list[i], file->d_name);
                 i++;
                 argc++;
-                //list = realloc(list, i*sizeof(char*));
+                list = realloc(list, i*sizeof(char*));
             }
         }
     } 
@@ -385,7 +438,7 @@ void del(int argc, char* argv[]){
         } else {
             a = lseek(archive_fd, filesize, SEEK_CUR);
         }
-        
+
         (rename("temp.txt", argv[2]));
         if(lseek(archive_fd, 0, SEEK_CUR)%2 == 1){
         }
@@ -463,6 +516,73 @@ bool ar_seek(int archive_fd, char* name, struct oscar_hdr *header){
     return false;
 }
 
+void create_tables(int archive_fd, char flag){
+    struct stat st;
+    struct oscar_hdr header;
+    char name[OSCAR_MAX_FILE_NAME_LEN+1];
+
+    if(fstat(archive_fd, &st) == -1){
+        printf("Could not stat archive");
+        exit(1);
+    }
+
+    lseek(archive_fd, OSCAR_ID_LEN, SEEK_SET);
+    while(lseek(archive_fd, 0, SEEK_CUR) < st.st_size){
+        if(read(archive_fd, &header, sizeof(header)) == -1){
+            printf("Could not read metadata\n");
+            exit(1);
+        }
+        memset(name, '\0', OSCAR_MAX_FILE_NAME_LEN+1);
+        memcpy(name, header.oscar_name, OSCAR_MAX_FILE_NAME_LEN);   
+        printf("File name: %s\n", name);
+
+        if(flag == 'T'){
+            printf("File size: %s\n", header.oscar_size);
+            printf("Permissions: %s\n", header.oscar_mode);
+            prettyowner(header.oscar_uid, 1);
+            prettygroup(header.oscar_gid, 1);
+            printf("Create date: ");
+            prettydate(header.oscar_cdate, 1); 
+            printf("Access date: ");
+            prettydate(header.oscar_adate, 1); 
+            printf("Modify date: ");
+            prettydate(header.oscar_mdate, 1);
+            if(header.oscar_deleted == 'y'){
+                printf("Marked deleted: Yes\n");
+            } else {     
+                printf("Marked deleted: No\n");
+            }
+        }    
+        lseek(archive_fd, ar_member_size(&header), SEEK_CUR);
+        if((lseek(archive_fd, 0, SEEK_CUR) %2) == 1){
+            lseek(archive_fd, 1, SEEK_CUR);
+        }
+    }
+}
+
+void prettyowner(char *chars, int v){
+    int uid = atoi(chars);
+    struct passwd *u = malloc(sizeof(struct passwd));
+    u = getpwuid(uid);
+    printf("File Owner: %s (uid: %d)\n", u->pw_name, uid);
+    return;
+}
+
+void prettygroup(char *chars, int v){
+    int gid = atoi(chars);
+    struct group *g = malloc(sizeof(struct group));
+    g = getgrgid(gid);
+    printf("File Group: %s (gid: %d)\n", g->gr_name, gid);
+    return;
+}
+
+void prettydate(char *chars, int v){
+    int tm = atoi(chars);
+    time_t t;
+    t = (time_t)tm;
+    printf("%s",ctime(&t));
+    return;
+} 
 
 off_t ar_member_size(struct oscar_hdr *header) {
     char size[OSCAR_FILE_SIZE + 1];
@@ -486,7 +606,7 @@ void check_archive(int archive_fd){
         printf("Ooops! That isn't an archive file\n");
         exit(1);
     }
-    //printf("ID: %s, Header: %s", OSCAR_ID, oscar_header);
+    printf("ID: %s, Header: %send", OSCAR_ID, oscar_header);
     if(strcmp(oscar_header, OSCAR_ID) != 0){
         printf("Not a valid archive file\n");
         //exit(1);
